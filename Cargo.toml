@@ -1,0 +1,9 @@
+[package]
+name = "av-vorbis"
+version = "0.1.0"
+authors = ["est31 <MTest31@outlook.com>"]
+
+[dependencies]
+lewton = "0.7"
+av-data = { version = "0.1.0", path = "../rust-av/data" }
+av-codec = { version = "0.1.0", path = "../rust-av/codec" }
