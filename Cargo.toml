@@ -6,5 +6,5 @@ license = "MIT"
 
 [dependencies]
 lewton = "0.7"
-av-data = { version = "0.1.0", path = "../rust-av/data" }
-av-codec = { version = "0.1.0", path = "../rust-av/codec" }
+av-data = { version = "0.1.0", git = "https://github.com/rust-av/rust-av" }
+av-codec = { version = "0.1.0", git = "https://github.com/rust-av/rust-av" }
