@@ -1,0 +1,15 @@
+name: av-vorbis
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Print rust version
+      run:  rustc -vV
+    - name: Run tests
+      run: cargo test --verbose
