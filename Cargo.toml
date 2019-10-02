@@ -7,4 +7,4 @@ license = "MIT"
 [dependencies]
 lewton = "0.9"
 av-data = "0.1.0"
-av-codec = "0.1.0"
+av-codec = "0.2.0"
