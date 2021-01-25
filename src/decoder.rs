@@ -1,16 +1,16 @@
-use lewton::header::HeaderSet;
-use lewton::header::{read_header_comment, read_header_ident};
-use lewton::header::{read_header_setup};
-use lewton::audio::get_decoded_sample_count;
-use lewton::audio::{PreviousWindowRight, read_audio_packet};
 use codec::decoder::*;
 use codec::error::*;
-use data::packet::Packet;
-use data::frame::*;
 use data::audiosample::formats::S16;
 use data::audiosample::ChannelMap;
-use std::sync::Arc;
+use data::frame::*;
+use data::packet::Packet;
+use lewton::audio::get_decoded_sample_count;
+use lewton::audio::{read_audio_packet, PreviousWindowRight};
+use lewton::header::read_header_setup;
+use lewton::header::HeaderSet;
+use lewton::header::{read_header_comment, read_header_ident};
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 struct Des {
     descr: Descr,
@@ -33,16 +33,17 @@ impl Dec {
             pending: VecDeque::with_capacity(1),
             info: AudioInfo {
                 samples: 0,
-                rate: 48000,
+                sample_rate: 48000,
                 map: ChannelMap::new(),
-                format: Arc::new(S16)
-            }
+                format: Arc::new(S16),
+                block_len: None,
+            },
         }
     }
 }
 
 impl Descriptor for Des {
-    fn create(&self) -> Box<Decoder> {
+    fn create(&self) -> Box<dyn Decoder> {
         Box::new(Dec::new())
     }
 
@@ -58,21 +59,20 @@ impl Decoder for Dec {
     fn send_packet(&mut self, pkt: &Packet) -> Result<()> {
         let headers = self.headers.as_ref().unwrap();
         let mut info = self.info.clone();
-        let samples_per_channel = get_decoded_sample_count(&headers.0,
-            &headers.2, pkt.data.as_slice())
-            .map_err(|_e| Error::InvalidData)?;
+        let samples_per_channel =
+            get_decoded_sample_count(&headers.0, &headers.2, pkt.data.as_slice())
+                .map_err(|_e| Error::InvalidData)?;
         let channel_count = headers.0.audio_channels as usize;
         info.samples = samples_per_channel * channel_count;
 
-        let ret = read_audio_packet(&headers.0, &headers.2,
-            pkt.data.as_slice(), &mut self.pwr);
+        let ret = read_audio_packet(&headers.0, &headers.2, pkt.data.as_slice(), &mut self.pwr);
 
         if let Ok(samples) = ret {
             let mut f = new_default_frame(info, Some(pkt.t.clone()));
             {
                 let buf: &mut [i16] = f.buf.as_mut_slice(0).unwrap();
                 let sample_count = samples[0].len();
-                for i in 0 .. sample_count {
+                for i in 0..sample_count {
                     for (cn, ref chan) in samples.iter().enumerate() {
                         buf[i * channel_count + cn] = chan[i];
                     }
@@ -88,7 +88,6 @@ impl Decoder for Dec {
         self.pending.pop_front().ok_or(Error::MoreDataNeeded)
     }
     fn configure(&mut self) -> Result<()> {
-
         let mut extradata = if let Some(ref extradata) = self.extradata {
             extradata.as_slice()
         } else {
@@ -104,13 +103,17 @@ impl Decoder for Dec {
 
         let ident = read_header_ident(&extradata[0..ident_len]).map_err(|_e| Error::InvalidData)?;
         extradata = &extradata[ident_len..];
-        let comment = read_header_comment(&extradata[0..comment_len]).map_err(|_e| Error::InvalidData)?;
+        let comment =
+            read_header_comment(&extradata[0..comment_len]).map_err(|_e| Error::InvalidData)?;
         extradata = &extradata[comment_len..];
-        let setup = read_header_setup(extradata, ident.audio_channels,
-            (ident.blocksize_0, ident.blocksize_1))
-            .map_err(|_e| Error::InvalidData)?;
+        let setup = read_header_setup(
+            extradata,
+            ident.audio_channels,
+            (ident.blocksize_0, ident.blocksize_1),
+        )
+        .map_err(|_e| Error::InvalidData)?;
 
-        self.info.rate = ident.audio_sample_rate as usize;
+        self.info.sample_rate = ident.audio_sample_rate as usize;
         self.info.map = ChannelMap::default_map(ident.audio_channels as usize);
 
         let headers = (ident, comment, setup);
@@ -139,7 +142,7 @@ fn read_xiph_lacing(arr: &mut &[u8]) -> Result<u64> {
     }
 }
 
-pub const VORBIS_DESCR: &Descriptor = &Des {
+pub const VORBIS_DESCR: &dyn Descriptor = &Des {
     descr: Descr {
         codec: "vorbis",
         name: "lewton",
