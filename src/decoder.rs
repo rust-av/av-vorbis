@@ -12,11 +12,11 @@ use lewton::header::{read_header_comment, read_header_ident};
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-struct Des {
+pub struct Des {
     descr: Descr,
 }
 
-struct Dec {
+pub struct Dec {
     extradata: Option<Vec<u8>>,
     headers: Option<HeaderSet>,
     pwr: PreviousWindowRight,
@@ -43,8 +43,10 @@ impl Dec {
 }
 
 impl Descriptor for Des {
-    fn create(&self) -> Box<dyn Decoder> {
-        Box::new(Dec::new())
+    type OutputDecoder = Dec;
+
+    fn create(&self) -> Self::OutputDecoder {
+        Dec::new()
     }
 
     fn describe<'a>(&'a self) -> &'a Descr {
@@ -68,7 +70,7 @@ impl Decoder for Dec {
         let ret = read_audio_packet(&headers.0, &headers.2, pkt.data.as_slice(), &mut self.pwr);
 
         if let Ok(samples) = ret {
-            let mut f = new_default_frame(info, Some(pkt.t.clone()));
+            let mut f = Frame::new_default_frame(info, Some(pkt.t.clone()));
             {
                 let buf: &mut [i16] = f.buf.as_mut_slice(0).unwrap();
                 let sample_count = samples[0].len();
@@ -142,7 +144,7 @@ fn read_xiph_lacing(arr: &mut &[u8]) -> Result<u64> {
     }
 }
 
-pub const VORBIS_DESCR: &dyn Descriptor = &Des {
+pub const VORBIS_DESCR: &Des = &Des {
     descr: Descr {
         codec: "vorbis",
         name: "lewton",
