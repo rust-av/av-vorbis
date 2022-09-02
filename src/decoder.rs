@@ -49,7 +49,7 @@ impl Descriptor for Des {
         Dec::new()
     }
 
-    fn describe<'a>(&'a self) -> &'a Descr {
+    fn describe(&self) -> &Descr {
         &self.descr
     }
 }
@@ -75,7 +75,7 @@ impl Decoder for Dec {
                 let buf: &mut [i16] = f.buf.as_mut_slice(0).unwrap();
                 let sample_count = samples[0].len();
                 for i in 0..sample_count {
-                    for (cn, ref chan) in samples.iter().enumerate() {
+                    for (cn, chan) in samples.iter().enumerate() {
                         buf[i * channel_count + cn] = chan[i];
                     }
                 }
@@ -96,7 +96,7 @@ impl Decoder for Dec {
             return Err(Error::ConfigurationIncomplete);
         };
         // We must start with a 2 as per matroska encapsulation spec
-        if extradata.len() == 0 || extradata[0] != 2 {
+        if extradata.is_empty() || extradata[0] != 2 {
             return Err(Error::InvalidData);
         }
         extradata = &extradata[1..];
@@ -132,7 +132,7 @@ impl Decoder for Dec {
 fn read_xiph_lacing(arr: &mut &[u8]) -> Result<u64> {
     let mut r = 0;
     loop {
-        if arr.len() == 0 {
+        if arr.is_empty() {
             return Err(Error::InvalidData);
         }
         let v = arr[0] as u64;
